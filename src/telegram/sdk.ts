@@ -52,6 +52,10 @@ export function tg(): TgWebApp | null {
   return w ?? null;
 }
 
+function supports(version: string): boolean {
+  return tg()?.isVersionAtLeast?.(version) === true;
+}
+
 export function insideTelegram(): boolean {
   const w = tg();
   return !!w && (!!w.initData || w.platform !== 'unknown');
@@ -63,10 +67,13 @@ export function initTelegram(): void {
   try {
     w.ready();
     w.expand();
-    w.setHeaderColor?.('#07090B');
-    w.setBackgroundColor?.('#07090B');
-    w.setBottomBarColor?.('#07090B');
-    if (w.isVersionAtLeast?.('7.7')) w.disableVerticalSwipes?.();
+    // Older clients log a warning for every unsupported call, so gate by API version.
+    if (supports('6.1')) {
+      w.setHeaderColor?.('#07090B');
+      w.setBackgroundColor?.('#07090B');
+    }
+    if (supports('7.10')) w.setBottomBarColor?.('#07090B');
+    if (supports('7.7')) w.disableVerticalSwipes?.();
   } catch {
     /* outside Telegram */
   }
@@ -115,26 +122,26 @@ export const haptic = {
   tap(): void {
     if (!hapticsEnabled) return;
     const h = tg()?.HapticFeedback;
-    if (h && insideTelegram()) h.selectionChanged();
+    if (h && insideTelegram() && supports('6.1')) h.selectionChanged();
     else vibrate(6);
   },
   impact(style: HapticImpact = 'light'): void {
     if (!hapticsEnabled) return;
     const h = tg()?.HapticFeedback;
-    if (h && insideTelegram()) h.impactOccurred(style);
+    if (h && insideTelegram() && supports('6.1')) h.impactOccurred(style);
     else vibrate(style === 'heavy' || style === 'rigid' ? 22 : style === 'medium' ? 14 : 8);
   },
   notify(kind: HapticNotice): void {
     if (!hapticsEnabled) return;
     const h = tg()?.HapticFeedback;
-    if (h && insideTelegram()) h.notificationOccurred(kind);
+    if (h && insideTelegram() && supports('6.1')) h.notificationOccurred(kind);
     else vibrate(kind === 'success' ? [12, 60, 24] : kind === 'error' ? [30, 40, 30, 40, 30] : [18, 50, 18]);
   },
   /** Celebratory rumble for a winning settlement. */
   win(): void {
     if (!hapticsEnabled) return;
     const h = tg()?.HapticFeedback;
-    if (h && insideTelegram()) {
+    if (h && insideTelegram() && supports('6.1')) {
       h.notificationOccurred('success');
       setTimeout(() => h.impactOccurred('heavy'), 180);
       setTimeout(() => h.impactOccurred('medium'), 320);
@@ -149,7 +156,7 @@ const backListener = () => currentBack?.();
 
 export function setBackButton(handler: BackHandler | null): void {
   const b = tg()?.BackButton;
-  if (!b || !insideTelegram()) {
+  if (!b || !insideTelegram() || !supports('6.1')) {
     currentBack = handler;
     return;
   }

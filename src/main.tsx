@@ -41,7 +41,7 @@ startSessionService();
 startLiveLoop();
 void useLive.getState().open(useLive.getState().channelId);
 // Dev-only handles for scripted screenshots and debugging.
-if (import.meta.env.DEV) Object.assign(window, { __nav: useNav, __live: useLive, __settings: useSettings });
+if (import.meta.env.DEV) Object.assign(window, { __nav: useNav, __live: useLive, __settings: useSettings, __pools: usePools });
 
 function routeContent(route: Route) {
   switch (route.name) {
@@ -97,12 +97,14 @@ function App() {
   const open = useLive((s) => s.open);
   const channelId = useLive((s) => s.channelId);
   const lang = useSettings((s) => s.lang);
-  useEffect(() => { setLang(lang); }, [lang]);
+  useEffect(() => { setLang(lang); document.documentElement.lang = lang; }, [lang]);
   useApplySettings();
   useEffect(() => { setBackButton(stack.length ? back : null); return () => setBackButton(null); }, [stack.length, back]);
   const live = route.name === 'tab' && route.tab === 'live';
+  // Pool screens carry their own sticky bet dock in the thumb zone instead of the tab bar.
+  const noNav = route.name === 'pool';
   const content = routeContent(route);
-  return <div className="app"><div className="app__bg-lines" /><SceneHost /><div className="screen-stack"><main key={JSON.stringify(route)} className={`screen ${live ? 'screen--flush' : ''}`}>{error && <div role="alert" className="statusbar statusbar--red">{error} <button onClick={() => void open(channelId)}>Retry</button></div>}{content}</main></div><NavBar openCount={openCount} /><div className="toast-wrap" aria-live="polite">{toasts.map((item) => <div className={`toast toast--${item.kind}`} key={item.id}><div><strong>{item.title}</strong>{item.body && <div>{item.body}</div>}</div>{item.action && <button onClick={item.action.run}>{item.action.label}</button>}<button aria-label="Close" onClick={() => dismiss(item.id)}>×</button></div>)}</div><Onboarding /></div>;
+  return <div className="app"><div className="app__bg-lines" /><SceneHost /><div className="screen-stack"><main key={JSON.stringify(route)} className={`screen ${live ? 'screen--flush' : ''} ${noNav ? 'screen--nonav' : ''}`}>{error && <div role="alert" className="statusbar statusbar--red">{error} <button onClick={() => void open(channelId)}>Retry</button></div>}{content}</main></div><NavBar openCount={openCount} hidden={noNav} /><div className="toast-wrap" aria-live="polite">{toasts.map((item) => <div className={`toast toast--${item.kind}`} key={item.id}><div><strong>{item.title}</strong>{item.body && <div>{item.body}</div>}</div>{item.action && <button onClick={item.action.run}>{item.action.label}</button>}<button aria-label="Close" onClick={() => dismiss(item.id)}>×</button></div>)}</div><Onboarding /></div>;
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
