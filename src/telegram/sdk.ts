@@ -151,10 +151,14 @@ export const haptic = {
 };
 
 type BackHandler = () => void;
+let baseBack: BackHandler | null = null;
+// Open overlays (sheets, dialogs) take the Back button first, newest on top.
+const overlayBacks: BackHandler[] = [];
 let currentBack: BackHandler | null = null;
 const backListener = () => currentBack?.();
 
-export function setBackButton(handler: BackHandler | null): void {
+function syncBackButton(): void {
+  const handler: BackHandler | null = overlayBacks.length ? overlayBacks[overlayBacks.length - 1]! : baseBack;
   const b = tg()?.BackButton;
   if (!b || !insideTelegram() || !supports('6.1')) {
     currentBack = handler;
@@ -166,4 +170,20 @@ export function setBackButton(handler: BackHandler | null): void {
     b.onClick(backListener);
     b.show();
   } else b.hide();
+}
+
+export function setBackButton(handler: BackHandler | null): void {
+  baseBack = handler;
+  syncBackButton();
+}
+
+/** Routes the Telegram Back button to an overlay until the returned release function is called. */
+export function pushOverlayBack(handler: BackHandler): () => void {
+  overlayBacks.push(handler);
+  syncBackButton();
+  return () => {
+    const i = overlayBacks.lastIndexOf(handler);
+    if (i >= 0) overlayBacks.splice(i, 1);
+    syncBackButton();
+  };
 }
